@@ -1,0 +1,117 @@
+###############################################################################
+# Copyright 2017 Samsung Electronics All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+###############################################################################
+
+##
+# EZMQ Unit Test build script
+##
+
+import os
+from build_common.tools.RunTest import run_test
+
+Import('env')
+
+gtest_env = SConscript('#extlibs/gtest/SConscript')
+lib_env = gtest_env.Clone()
+ezmq_test_env = lib_env.Clone()
+target_os = ezmq_test_env.get('TARGET_OS')
+
+######################################################################
+# Build flags
+######################################################################
+
+if target_os not in ['windows']:
+    ezmq_test_env.AppendUnique(
+        CXXFLAGS=['-O2', '-g', '-Wall', '-fmessage-length=0', '-I/usr/local/include'])
+    ezmq_test_env.AppendUnique(LIBPATH=[lib_env.get('BUILD_DIR')])
+    ezmq_test_env.AppendUnique(LIBS=['ezmq', 'protobuf'])
+    if not ezmq_test_env.get('RELEASE'):
+        ezmq_test_env.PrependUnique(LIBS=['gcov'])
+        ezmq_test_env.AppendUnique(CXXFLAGS=['--coverage'])
+        ezmq_test_env.AppendUnique(CCFLAGS=['-g'])
+        ezmq_test_env.AppendUnique(CPPDEFINES=['DEBUG_LOG'])
+    else:
+        ezmq_test_env.AppendUnique(CCFLAGS=['-Os'])
+else:
+    if env.get('SECURED') == '1':
+        ezmq_test_env.AppendUnique(LIBS=File('#/dependencies/libsodium/bin/x64/Release/v140/static/libsodium.lib'))
+    ezmq_test_env.AppendUnique(LIBS=File('#/dependencies/libzmq/bin/x64/Release/v140/static/libzmq.lib'))
+    ezmq_test_env.AppendUnique(LIBS=File('#/dependencies/protobuf-3.4.0/cmake/build/solution/Release/libprotobuf.lib'))
+    if not env.get('RELEASE'):
+        ezmq_test_env.AppendUnique(LIBS=File('#/out/windows/win32/amd64/debug/ezmq.lib'))
+    else:
+        ezmq_test_env.AppendUnique(LIBS=File('#/out/windows/win32/amd64/release/ezmq.lib'))
+
+ezmq_test_env.AppendUnique(CPPPATH=[
+    '../extlibs/hippomocks/hippomocks',
+    '../extlibs/zmq',
+    '../protobuf',
+    '../include',
+    '../include/logger',
+    '../src',
+    '.',
+    '../dependencies/libzmq/include',
+    '../dependencies/protobuf-3.4.0/src/',
+])
+
+######################################################################
+# Build Test
+######################################################################
+
+ezmq_api_test_src = ezmq_test_env.Glob('./EZMQAPITest.cpp')
+ezmq_api_test = ezmq_test_env.Program('ezmq_api_test',
+                                         ezmq_api_test_src)
+Alias("ezmq_api_test", ezmq_api_test)
+ezmq_test_env.AppendTarget('ezmq_api_test')
+
+ezmq_pub_test_src = ezmq_test_env.Glob('./EZMQPublisherTest.cpp')
+ezmq_pub_test = ezmq_test_env.Program('ezmq_pub_test',
+                                         ezmq_pub_test_src)
+Alias("ezmq_pub_test", ezmq_pub_test)
+ezmq_test_env.AppendTarget('ezmq_pub_test')
+
+ezmq_sub_test_src = ezmq_test_env.Glob('./EZMQSubscriberTest.cpp')
+ezmq_sub_test = ezmq_test_env.Program('ezmq_sub_test',
+                                         ezmq_sub_test_src)
+Alias("ezmq_sub_test", ezmq_sub_test)
+ezmq_test_env.AppendTarget('ezmq_sub_test')
+
+ezmq_byteData_test_src = ezmq_test_env.Glob('./EZMQByteDataTest.cpp')
+ezmq_byteData_test = ezmq_test_env.Program('ezmq_byteData_test',
+                                         ezmq_byteData_test_src)
+Alias("ezmq_byteData_test", ezmq_byteData_test)
+ezmq_test_env.AppendTarget('ezmq_byteData_test')
+
+ezmq_exception_test_src = ezmq_test_env.Glob('./EZMQExceptionTest.cpp')
+ezmq_exception_test = ezmq_test_env.Program('ezmq_exception_test',
+                                         ezmq_exception_test_src)
+Alias("ezmq_exception_test", ezmq_exception_test)
+ezmq_test_env.AppendTarget('ezmq_exception_test')
+
+if env.get('TEST') == '1' and target_os =='linux':
+	run_test(ezmq_test_env, '', 'unittests/ezmq_api_test', ezmq_api_test)
+	run_test(ezmq_test_env, '', 'unittests/ezmq_pub_test', ezmq_pub_test)
+	run_test(ezmq_test_env, '', 'unittests/ezmq_sub_test', ezmq_sub_test)
+	run_test(ezmq_test_env, '', 'unittests/ezmq_byteData_test', ezmq_bytedata_test)
+	run_test(ezmq_test_env, '', 'unittests/ezmq_exception_test', ezmq_exception_test)
+
+if env.get('TEST') == '1' and target_os =='windows':
+	run_test(ezmq_test_env, '', 'unittests/ezmq_api_test.exe', ezmq_api_test)
+	run_test(ezmq_test_env, '', 'unittests/ezmq_pub_test.exe', ezmq_pub_test)
+	run_test(ezmq_test_env, '', 'unittests/ezmq_sub_test.exe', ezmq_sub_test)
+	run_test(ezmq_test_env, '', 'unittests/ezmq_byteData_test.exe', ezmq_byteData_test)
+	run_test(ezmq_test_env, '', 'unittests/ezmq_exception_test.exe', ezmq_exception_test)
+
